@@ -6,8 +6,9 @@ ALTER TABLE book
   ADD COLUMN appointment_time TIME NULL AFTER DOV,
   ADD COLUMN appointment_id BIGINT UNSIGNED NULL AUTO_INCREMENT UNIQUE FIRST;
 
-ALTER TABLE book
-  MODIFY COLUMN appointment_time TIME NOT NULL;
+-- Existing appointments did not have a time. Preserve them with a legacy value.
+UPDATE book SET appointment_time = '00:00:00' WHERE appointment_time IS NULL;
+ALTER TABLE book MODIFY COLUMN appointment_time TIME NOT NULL;
 
 ALTER TABLE book ENGINE=InnoDB;
 ALTER TABLE doctor_availability ENGINE=InnoDB;
