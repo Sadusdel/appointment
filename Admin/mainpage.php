@@ -14,7 +14,8 @@
       <a href="adddoctor.php">Add Doctor</a>
       <a href="deletedoctor.php">Delete Doctor</a>
       <a href="showdoctor.php">Show Doctor</a>
-	  <a href="showdoctorschedule.php">Show Doctor Schedule</a>
+      <a href="showdoctorschedule.php">Show Doctor Schedule</a>
+      <a href="showappointments.php">Randevular</a>
     </div>
   </li>
   
