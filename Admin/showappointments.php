@@ -50,6 +50,7 @@ $result = $stmt->get_result();
 function statusClass($status)
 {
     switch (trim((string)$status)) {
+
         case 'Onaylandı':
             return 'approved';
 
@@ -145,7 +146,7 @@ body {
 .appointment-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 950px;
+    min-width: 1100px;
 }
 
 .appointment-table th {
@@ -192,6 +193,43 @@ body {
     color: #721c24;
 }
 
+.actions {
+    white-space: nowrap;
+}
+
+.action-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 7px 10px;
+    margin: 2px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.action-btn.approve {
+    background: #28a745;
+    color: white;
+}
+
+.action-btn.complete {
+    background: #007bff;
+    color: white;
+}
+
+.action-btn.cancel {
+    background: #dc3545;
+    color: white;
+}
+
+.action-btn:hover {
+    opacity: 0.85;
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .empty {
     padding: 30px;
     text-align: center;
@@ -206,7 +244,7 @@ body {
 
 <div class="page-header">
 
-<h1>📅 Randevu Yönetimi</h1>
+<h1>Randevu Yönetimi</h1>
 
 <a href="mainpage.php" class="back-button">
 Admin Paneli
@@ -258,6 +296,7 @@ class="filter-button <?php echo $statusFilter === 'İptal Edildi' ? 'active' : '
 <th>Doktor</th>
 <th>Klinik</th>
 <th>Durum</th>
+<th>İşlemler</th>
 <th>Oluşturulma</th>
 </tr>
 
@@ -268,7 +307,7 @@ class="filter-button <?php echo $statusFilter === 'İptal Edildi' ? 'active' : '
 <?php if ($result->num_rows === 0): ?>
 
 <tr>
-<td colspan="9" class="empty">
+<td colspan="10" class="empty">
 Bu kriterlere uygun randevu bulunamadı.
 </td>
 </tr>
@@ -294,8 +333,8 @@ echo !empty($row['DOV'])
 <td>
 <?php
 echo !empty($row['appointment_time'])
-    ? htmlspecialchars(substr($row['appointment_time'], 0, 5))
-    : '--:--';
+    ? substr($row['appointment_time'], 0, 5)
+    : '-';
 ?>
 </td>
 
@@ -331,6 +370,55 @@ if (!empty($row['town'])) {
 
 </td>
 
+<td class="actions">
+
+<?php if (
+    $row['Status'] !== 'Onaylandı' &&
+    $row['Status'] !== 'Tamamlandı' &&
+    $row['Status'] !== 'İptal Edildi'
+): ?>
+
+<button
+    type="button"
+    class="action-btn approve"
+    data-id="<?php echo (int)$row['appointment_id']; ?>"
+    data-status="Onaylandı">
+    Onayla
+</button>
+
+<?php endif; ?>
+
+
+<?php if ($row['Status'] === 'Onaylandı'): ?>
+
+<button
+    type="button"
+    class="action-btn complete"
+    data-id="<?php echo (int)$row['appointment_id']; ?>"
+    data-status="Tamamlandı">
+    Tamamlandı
+</button>
+
+<?php endif; ?>
+
+
+<?php if (
+    $row['Status'] !== 'Tamamlandı' &&
+    $row['Status'] !== 'İptal Edildi'
+): ?>
+
+<button
+    type="button"
+    class="action-btn cancel"
+    data-id="<?php echo (int)$row['appointment_id']; ?>"
+    data-status="İptal Edildi">
+    İptal Et
+</button>
+
+<?php endif; ?>
+
+</td>
+
 <td>
 <?php echo htmlspecialchars($row['Timestamp']); ?>
 </td>
@@ -346,6 +434,76 @@ if (!empty($row['town'])) {
 </table>
 
 </div>
+
+
+<script>
+
+document.querySelectorAll('.action-btn').forEach(function(button) {
+
+    button.addEventListener('click', async function() {
+
+        const appointmentId = this.dataset.id;
+        const status = this.dataset.status;
+
+        if (status === 'İptal Edildi') {
+
+            if (!confirm(
+                'Bu randevuyu iptal etmek istediğinize emin misiniz?'
+            )) {
+                return;
+            }
+
+        } else {
+
+            if (!confirm(
+                'Randevu durumunu "' + status +
+                '" olarak değiştirmek istiyor musunuz?'
+            )) {
+                return;
+            }
+
+        }
+
+        this.disabled = true;
+
+        const formData = new FormData();
+
+        formData.append('appointment_id', appointmentId);
+        formData.append('status', status);
+
+        try {
+
+            const response = await fetch(
+                'admin_update_appointment.php',
+                {
+                    method: 'POST',
+                    body: formData
+                }
+            );
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(
+                    data.message || 'İşlem başarısız.'
+                );
+            }
+
+            location.reload();
+
+        } catch (error) {
+
+            alert(error.message);
+
+            this.disabled = false;
+
+        }
+
+    });
+
+});
+
+</script>
 
 </body>
 </html>
