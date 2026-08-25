@@ -65,6 +65,22 @@ small { display: block; margin-top: 7px; color: #7a8495; font-size: 12px; }
 .primary-button:hover, button:hover { background: #0f57bf; box-shadow: 0 8px 20px rgba(23,105,224,.22); transform: translateY(-1px); }
 .primary-button:disabled, button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
 
+/* Patient dashboard */
+.appointment-list { display: grid; gap: 14px; }
+.appointment-item { display: grid; grid-template-columns: 1.1fr 1.2fr .9fr; gap: 20px; align-items: center; padding: 20px; border: 1px solid #e2e7ef; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(25,45,80,.05); transition: transform .15s, box-shadow .2s, border-color .2s; }
+.appointment-item:hover { transform: translateY(-1px); border-color: #cfd9e8; box-shadow: 0 12px 30px rgba(25,45,80,.08); }
+.appointment-item > div > strong { display: block; color: #172033; font-size: 15px; line-height: 1.4; }
+.appointment-item > div > span { display: block; margin-top: 5px; color: #687386; font-size: 13px; line-height: 1.45; }
+.patient-status-card { margin-top: 0 !important; padding-left: 18px; border-left: 1px solid #e5e9f0; }
+.status-pill { box-shadow: inset 0 0 0 1px rgba(0,0,0,.03); }
+.appointment-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
+.cancel-button { width: auto !important; border: 1px solid #f0c5c5 !important; border-radius: 9px !important; padding: 9px 14px !important; background: #fff6f6 !important; color: #a51d2d !important; font-weight: 700 !important; }
+.cancel-button:hover { background: #ffeaea !important; box-shadow: none !important; transform: none !important; }
+.panel-message { padding: 13px 16px; border-radius: 10px; margin-bottom: 18px; font-weight: 600; }
+.panel-message.success { background: #eaf8f0; color: #146c3a; }
+.panel-message.error { background: #fff0f0; color: #a51d2d; }
+.appointment-status-label { display: block; margin-bottom: 6px; font-size: 12px; color: #687386; font-weight: 600; }
+
 /* Preserve legacy pages while giving them a cleaner base. */
 ul { list-style: none; margin: 0; padding: 0; }
 .container { padding: 16px; }
@@ -74,7 +90,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 @media (max-width: 700px) {
     .header-inner { min-height: 64px; padding: 0 16px; }
     .brand { font-size: 18px; }
-    .site-header nav a { padding: 8px 9px; font-size: 14px; }
+    .site-header nav { gap: 4px; overflow-x: auto; }
+    .site-header nav a { padding: 8px 9px; font-size: 14px; white-space: nowrap; }
     .booking-wrapper { width: min(100% - 20px, 920px); margin: 22px auto 40px; }
     .booking-card { padding: 20px 14px; border-radius: 16px; }
     .booking-step { padding: 18px 14px; border-radius: 14px; }
@@ -83,6 +100,10 @@ ul { list-style: none; margin: 0; padding: 0; }
     .time-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .time-option { min-height: 44px; padding: 9px 7px; font-size: 13px; }
     .summary-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .appointment-item { grid-template-columns: 1fr; gap: 14px; padding: 17px; }
+    .patient-status-card { padding-left: 0; padding-top: 14px; border-left: 0; border-top: 1px solid #e5e9f0; }
+    .appointment-actions { justify-content: stretch; }
+    .cancel-button { width: 100% !important; }
 }
 
 @media (max-width: 390px) {
