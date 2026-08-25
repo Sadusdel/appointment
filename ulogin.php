@@ -12,6 +12,7 @@
 <div class="container" style="width:100%">
 	<div class="container" style="background-image:url(images/userback.jpg)">
 	<form method="post">
+      <button type="button" onclick="window.location.href='patient_dashboard.php'" style="background-color:#1769e0">Hasta Paneli</button>
       <button type="button" onclick="window.location.href='book.php'" style="background-color:#2B4F76">Book Appointment</button>
 	  <button type="button" onclick="window.location.href='viewpatientappointments.php'" style="background-color:#2B4F76">Show Appointments</button>
 	  <button type="submit" name="cancel" style="float:center;background-color:#2B4F76">Cancel Booking</button>
