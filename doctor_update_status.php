@@ -14,6 +14,73 @@ $allowedStatuses = [
     'İptal Edildi'
 ];
 
+$currentStatus = '';
+
+$stmtCurrent = $conn->prepare("
+    SELECT Status
+    FROM book
+    WHERE appointment_id = ?
+      AND DID = ?
+    LIMIT 1
+");
+
+$stmtCurrent->bind_param(
+    'ii',
+    $appointmentId,
+    $doctorId
+);
+
+$stmtCurrent->execute();
+
+$resultCurrent = $stmtCurrent->get_result();
+$currentRow = $resultCurrent->fetch_assoc();
+
+$stmtCurrent->close();
+
+if (!$currentRow) {
+    http_response_code(404);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Randevu bulunamadı.'
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit;
+}
+
+$currentStatus = trim((string)$currentRow['Status']);
+
+if ($currentStatus === '' || $currentStatus === 'Booked') {
+    $currentStatus = 'Bekliyor';
+}
+
+$validTransition = false;
+
+if (
+    $currentStatus === 'Bekliyor' &&
+    in_array($newStatus, ['Onaylandı', 'İptal Edildi'], true)
+) {
+    $validTransition = true;
+}
+
+if (
+    $currentStatus === 'Onaylandı' &&
+    $newStatus === 'Tamamlandı'
+) {
+    $validTransition = true;
+}
+
+if (!$validTransition) {
+    http_response_code(400);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Bu randevu için bu durum değişikliğine izin verilmiyor.'
+    ], JSON_UNESCAPED_UNICODE);
+
+    exit;
+}
+
 if (
     $doctorId <= 0 ||
     $appointmentId <= 0 ||
