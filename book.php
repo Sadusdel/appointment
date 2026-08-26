@@ -277,6 +277,16 @@ function loadSlots() {
 
 $('#doctor-list, #dov').on('change', function () { loadSlots(); updateSummary(); });
 $('#clinic-list, #doctor-list, #dov').on('change', updateSummary);
+    $('#booking-form').on('submit', function () {
+    const button = $('#submit-button');
+
+    if (button.prop('disabled')) {
+        return false;
+    }
+
+    button.prop('disabled', true);
+    button.text('Randevu oluşturuluyor...');
+});
 </script>
 </body>
 </html>
