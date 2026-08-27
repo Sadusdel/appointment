@@ -1,24 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Untitled Document</title>
-</head>
-<script type="text/javascript">//alert("sdfsd");</script>
-<body>
 <?php
-require_once("dbconfig.php");
-	$query1 ="SELECT * FROM manager WHERE UPPER(region) like UPPER('%".$_POST["city"]."%')";
-	$results1 = $conn->query($query1);
+session_start();
+if(!isset($_SESSION['userName'])||$_SESSION['userName']!=='admin'){http_response_code(403);exit;}
+require 'dbconfig.php';$city=trim($_POST['city']??'');echo '<option value="">Manager seçin</option>';if($city==='')exit;
+$q=$conn->prepare('SELECT MID,Name,Region FROM manager WHERE Region LIKE CONCAT("%",?,"%") ORDER BY Name');$q->bind_param('s',$city);$q->execute();$res=$q->get_result();while($r=$res->fetch_assoc())echo '<option value="'.(int)$r['MID'].'">'.htmlspecialchars($r['Name'].' — '.$r['Region'],ENT_QUOTES,'UTF-8').'</option>';$q->close();
 ?>
-	<option value="">Select Manager</option>
-<?php
-	while($rs1=$results1->fetch_assoc()) {
-?>
-	<option value="<?php echo $rs1["mid"]; ?>"><?php echo $rs1["name"]."-(Region: ".$rs1["region"].")"; ?></option>
-<?php
-
-}
-?>
-</body>
-</html>
