@@ -1,140 +1,20 @@
-<!DOCTYPE html>
-<html>
-<head>
-<link rel="stylesheet" href="adminmain.css"> 
-</head>
-<body background= "managerview.jpg">
-<ul>
-<li class="dropdown"><font color="yellow" size="10">ADMIN MODE</font></li>
-<br>
-<h2>
-  <li class="dropdown">    
-  <a href="javascript:void(0)" class="dropbtn">Doctor</a>
-    <div class="dropdown-content">
-      <a href="adddoctor.php">Add Doctor</a>
-      <a href="deletedoctor.php">Delete Doctor</a>
-      <a href="showdoctor.php">Show Doctor</a>
-	  <a href="showdoctorschedule.php">Show Doctor Schedule</a>
-    </div>
-  </li>
-  
-  <li class="dropdown">
-  <a href="javascript:void(0)" class="dropbtn">Clinic</a>
-    <div class="dropdown-content">
-      <a href="addclinic.php">Add Clinic</a>
-      <a href="deleteclinic.php">Delete Clinic</a>
-      <a href="adddoctorclinic.php">Assign Doctor to Clinic</a>
-	  <a href="addmanagerclinic.php">Assign Manager to Clinic</a>
-	  <a href="deletedoctorclinic.php">Delete Doctor from Clinic</a>
-	  <a href="deletemanagerclinic.php">Delete Manager from Clinic</a>
-	  <a href="showclinic.php">Show Clinic</a>
-    </div>
-  </li>
-  <li class="dropdown">    
-  <a href="javascript:void(0)" class="dropbtn">Manager</a>
-    <div class="dropdown-content">
-      <a href="addmanager.php">Add Manager</a>
-      <a href="deletemanager.php">Delete Manager</a>
-	  <a href="showmanager.php">Show Manager</a>
-    </div>
-  </li>
-  <li>  
-	<form method="post" action="mainpage.php">	
-	<button type="submit" class="cancelbtn" name="logout" style="float:right;font-size:22px"><b>Log Out</b></button>
-	</form>
-  </li>
-	
-</ul>
-</h2>
-<h1>
-<center><h1>DELETE MANAGER</h1><hr>
-<form method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]);?>">  
-Enter MID:<center><input type="number" name="mid"></center>
-			<button type="submit" name="Submit1">Delete by DID</button>
-			<br>---------OR---------<br>
-Select Name:<br><?php
-				require_once('dbconfig.php');
-				$manager_result = $conn->query('select * from manager order by MID ASC');
-				?>
-				<center>
-				<select name="managername">
-				<option value="">---Select Name---</option>
-				<?php
-				if ($manager_result->num_rows > 0) {
-				while($row = $manager_result->fetch_assoc()) {
-				?>
-				<option value="<?php echo $row["MID"]; ?>"><?php echo "(MID=".$row["MID"].") ".$row["Name"]; ?></option>
-				<?php
-					}
-					}
-				?>
-				</select></center>
-				
-				<button type="submit" name="Submit2">Delete by Name</button>
-</form>			
 <?php
 session_start();
-include 'dbconfig.php';
-if(isset($_POST['Submit1']))
-{
-	$mid=$_POST['mid'];
-	$sql = "DELETE FROM manager WHERE MID= $mid ";
-	$sql1="update clinic set MID=0 where MID=$mid";
-	if (mysqli_query($conn, $sql))
-		{
-		echo "Record deleted successfully.Refreshing....";
-		header( "Refresh:3; url=deletemanager.php");
-		}
-	else
-		{
-			echo "Error deleting record: " . mysqli_error($conn);
-		}
-				if (mysqli_query($conn, $sql1)) 
-				{
-							echo "<h2>Record reseted in CLINIC TABLE!!</h2>";
-							echo "Please wait...Refreshing...";
-							header( "Refresh:2; url=deletemanager.php");
-
-				} 
-				else
-				{
-					echo "Error: " . $sql1 . "<br>" . mysqli_error($conn);
-				}
-				
+if(isset($_POST['logout'])){session_unset();session_destroy();header('Location: alogin.php');exit;}
+require 'dbconfig.php';
+$message='';$type='';
+if(isset($_POST['Submit1'])||isset($_POST['Submit2'])){
+ $mid=(int)($_POST['mid']??$_POST['managername']??0);
+ if($mid<=0){$message='Geçerli bir manager seçin.';$type='error';}
+ else{
+  $conn->begin_transaction();
+  try{
+   $q=$conn->prepare('DELETE FROM manager_clinic WHERE MID=?');$q->bind_param('i',$mid);$q->execute();$q->close();
+   $q=$conn->prepare('UPDATE clinic SET MID=0 WHERE MID=?');$q->bind_param('i',$mid);$q->execute();$q->close();
+   $q=$conn->prepare('DELETE FROM manager WHERE MID=?');$q->bind_param('i',$mid);$q->execute();$affected=$q->affected_rows;$q->close();
+   $conn->commit();$message=$affected?'Manager başarıyla silindi.':'Bu MID ile kayıtlı manager bulunamadı.';$type=$affected?'success':'error';
+  }catch(Throwable $e){$conn->rollback();$message='Silme işlemi sırasında hata oluştu.';$type='error';}
+ }
 }
-if(isset($_POST['Submit2']))
-{
-	$mid=$_POST['managername'];
-	$sql = "DELETE FROM manager WHERE mid = $mid ";
-	$sql1="update clinic set MID=0 where MID=$mid";
-	if (mysqli_query($conn, $sql))
-		{
-		echo "Record deleted successfully.Refreshing....";
-		header( "Refresh:3; url=deletemanager.php");
-		}
-	else
-		{
-			echo "Error deleting record: " . mysqli_error($conn);
-		}
-				
-				if (mysqli_query($conn, $sql1)) 
-				{
-							echo "<h2>Record reseted in CLINIC TABLE!!</h2>";
-							echo "Please wait...Refreshing...";
-							header( "Refresh:2; url=deletemanager.php");
-
-				} 
-				else
-				{
-					echo "Error: " . $sql1 . "<br>" . mysqli_error($conn);
-				}
-
-}	
-if(isset($_POST['logout'])){
-		session_unset();
-		session_destroy();
-		header( "Refresh:1; url=alogin.php"); 
-	}
-?>			
-</body>
-</html>
+$result=$conn->query('SELECT MID,Name,Contact,Region FROM manager ORDER BY MID ASC');
+?><!doctype html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manager Sil | Admin</title><link rel="stylesheet" href="adminmain.css"><style>.admin-wrap{width:min(1050px,calc(100% - 32px));margin:30px auto 60px}.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:22px}.page-head h1{margin:5px 0 7px;font-size:32px}.page-head p{margin:0;color:var(--muted)}.danger-card{padding:24px}.danger-note{padding:12px 14px;border-radius:9px;background:#fff7e8;color:#85600f;font-size:13px;margin-bottom:20px}.delete-form{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}.delete-form .button{width:auto}.list-card{padding:0;overflow:hidden;margin-top:16px}.list-head{padding:17px 20px;border-bottom:1px solid var(--border);font-weight:800}.manager-row{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:14px 20px;border-bottom:1px solid var(--border)}.manager-row:last-child{border:0}.manager-name{font-weight:800}.manager-meta{font-size:12px;color:var(--muted);margin-top:3px}.mini-danger{border:0;border-radius:8px;padding:8px 11px;background:#ffebeb;color:#b53b3b;font-weight:800;cursor:pointer}.empty{padding:30px;text-align:center;color:var(--muted)}@media(max-width:600px){.admin-wrap{width:calc(100% - 20px);margin-top:18px}.page-head{align-items:flex-start;flex-direction:column}.page-head .button{width:100%}.delete-form{grid-template-columns:1fr}.delete-form .button{width:100%}.manager-row{align-items:flex-start}.mini-danger{flex-shrink:0}}</style></head><body class="admin-page"><header class="site-header"><div class="header-inner"><a class="brand" href="mainpage.php"><img src="../images/cal.png" alt="Appointment"><span>Appointment</span></a><nav><a href="mainpage.php">Panel</a><a class="active" href="deletemanager.php">Manager Sil</a></nav></div></header><main class="admin-wrap"><div class="page-head"><div><span class="eyebrow">MANAGER YÖNETİMİ</span><h1>Manager sil</h1><p>Manager hesabını MID ile veya listeden seçerek kaldırın.</p></div><a class="button secondary" href="mainpage.php">Panele Dön</a></div><section class="card danger-card"><div class="danger-note">Manager silindiğinde manager-klinik ilişkileri kaldırılır ve bağlı kliniklerin manager alanı temizlenir.</div><?php if($message):?><div class="alert <?php echo $type;?>"><?php echo htmlspecialchars($message);?></div><?php endif;?><form class="delete-form" method="post"><div class="field"><label>Manager seçin</label><select name="managername" required><option value="">Manager seçin</option><?php mysqli_data_seek($result,0);while($r=mysqli_fetch_assoc($result)):?><option value="<?php echo (int)$r['MID'];?>">#<?php echo (int)$r['MID'];?> — <?php echo htmlspecialchars($r['Name']);?></option><?php endwhile;?></select></div><button class="button danger" type="submit" name="Submit2" onclick="return confirm('Seçili manager silinsin mi?')">Manager'ı Sil</button></form><form style="margin-top:14px" class="delete-form" method="post"><div class="field"><label>Veya MID ile sil</label><input type="number" name="mid" min="1" placeholder="Örn. 12" required></div><button class="button danger" type="submit" name="Submit1" onclick="return confirm('Bu manager silinsin mi?')">MID ile Sil</button></form></section><section class="card list-card"><div class="list-head">Mevcut managerlar</div><?php mysqli_data_seek($result,0);if(mysqli_num_rows($result)===0):?><div class="empty">Kayıtlı manager bulunmuyor.</div><?php else:while($r=mysqli_fetch_assoc($result)):?><div class="manager-row"><div><div class="manager-name"><?php echo htmlspecialchars($r['Name']);?></div><div class="manager-meta">#<?php echo (int)$r['MID'];?> · <?php echo htmlspecialchars($r['Contact']);?> · <?php echo htmlspecialchars($r['Region']);?></div></div><form method="post"><input type="hidden" name="managername" value="<?php echo (int)$r['MID'];?>"><button class="mini-danger" name="Submit2" type="submit" onclick="return confirm('Bu manager silinsin mi?')">Sil</button></form></div><?php endwhile;endif;?></section></main></body></html>
