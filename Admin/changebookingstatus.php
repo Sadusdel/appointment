@@ -1,126 +1,23 @@
-<html>
-<head>
-<link rel="stylesheet" href="main.css">
-<script src="https://code.jquery.com/jquery-2.1.1.min.js" type="text/javascript"></script>
-</head><?php include "dbconfig.php"; ?>
-<style>
-table{
-    width: 100%;
-    border-collapse: collapse;
-	border: 4px solid black;
-    padding: 1px;
-	font-size: 25px;
-}
-
-th{
-border: 1px solid black;
-	background-color: #4CAF50;
-    color: white;
-	text-align: left;
-}
-tr,td{
-	border: 1px solid black;
-	background-color: white;
-    color: black;
-}
-</style>
-
-<body style="background-image:url(mgrchange.jpg)">
-	<div class="header">
-		<ul>
-			<li style="float:left;border-right:none"><a href="ulogin.php" class="logo"><img src="../images/cal.png" width="30px" height="30px"><strong> Skylabs </strong>Appointment Booking System</a></li>
-			<li><a href="mgrmenu.php">Home</a></li>
-		</ul>
-	</div>
-	<form action="changebookingstatus.php" method="post">
-	<div>
-		
-	
-		<label style="font-size:20px"><b>Doctor:</b></label><br>
-		<select name="doctor" id="doctor-list" class="demoInputBox" style="width:100%;height:35px;border-radius:9px">
-		<option value="">Select Doctor</option>
-		<?php
-		session_start();
-		$mid=$_SESSION['mgrid'];
-		$sql1="SELECT * FROM doctor where did in(select did from doctor_availability where cid in (select cid from manager_clinic where mid=$mid));";
-         $results=$conn->query($sql1); 
-		while($rs=$results->fetch_assoc()) { 
-		?>
-		<option value="<?php echo $rs["did"]; ?>"><?php echo "Dr. ".$rs["name"]; ?></option>
-		<?php
-		}
-		?>
-		</select>
-        <br>
-		
-		<label><b>Date:</b></label><br>
-		<input type="date" name="dateselected" required><br><br>
-		<br>
-			<button type="submit" style="position:center" name="submit" value="Submit">Submit</button>
-			</form>
 <?php
-if(isset($_POST['submit']))
-{
-		
-		include 'dbconfig.php';
-		$did=$_POST['doctor'];
-		$cid=1;
-		$dateselected=$_POST['dateselected'];
-		$sql1 = "select * from book where DOV='". $_POST['dateselected']."' AND DID= $did AND CID= $cid order by Timestamp ASC";
-		 $results1=$conn->query($sql1); 
-			require_once("dbconfig.php");
-?>			
-				<form action="changebookingstatus.php" method="post">; 
-				<table>
-				<tr>
-				<th>UserName</th>
-				<th>First Name</th>
-				<th>DOV</th>
-				<th>Timestamp</th>
-				<th>Status</th>
-				</tr>
-<?php
-			while($rs1=$results1->fetch_assoc())
-			{
-				echo "<tr>";
-					echo  '<td><input type="text" name="username[]" id="username" value="'.$rs1["Username"].'" readonly></td>'
-					.'<td><input type="text" name="fname[]" id="fname" value="'.$rs1["Fname"].'" readonly></td>'
-					.'<td><input type="date" name="dov[]" id="dov" value="'.$rs1["DOV"].'" readonly></td>'
-					.'<td><input type="text" name="timestamp[]" id="timestamp" value="'.$rs1["Timestamp"].'" readonly></td>'
-					.'<td><input type="text" name="status[]" id="status" value="'.$rs1["Status"].'"></td></tr>' ;
-			}
-?>		
-			</table>	
-			<button type="submit" style="position:center" name="submit2" value="Submit">Submit Changes</button></form>		
-<?php
+session_start();
+require_once 'dbconfig.php';
+if (!isset($_SESSION['mgrid'])) { header('Location: mlogin.php'); exit; }
+$mid=(int)$_SESSION['mgrid']; $message=''; $did=(int)($_POST['doctor']??0); $dateselected=$_POST['dateselected']??'';
+$doctors=$conn->prepare('SELECT DISTINCT d.DID,d.Name FROM doctor d INNER JOIN doctor_availability da ON da.DID=d.DID INNER JOIN manager_clinic mc ON mc.CID=da.CID WHERE mc.MID=? ORDER BY d.Name ASC');
+$doctors->bind_param('i',$mid); $doctors->execute(); $doctorResult=$doctors->get_result();
+if(isset($_POST['submit2'])){
+ $usernames=$_POST['username']??[]; $timestamps=$_POST['timestamp']??[]; $statuses=$_POST['status']??[]; $firstNames=$_POST['fname']??[]; $count=min(count($usernames),count($timestamps),count($statuses)); $allowed=['Bekliyor','Onaylandı','Tamamlandı','İptal Edildi'];
+ $update=$conn->prepare("UPDATE book b INNER JOIN manager_clinic mc ON mc.CID=b.CID SET b.Status=?, b.active_slot_key=CASE WHEN ? IN ('İptal Edildi','Tamamlandı') THEN NULL ELSE b.active_slot_key END WHERE b.Username=? AND b.Timestamp=? AND mc.MID=?");
+ for($j=0;$j<$count;$j++){ $status=trim($statuses[$j]); if(!in_array($status,$allowed,true)) continue; $username=$usernames[$j]; $timestamp=$timestamps[$j]; $update->bind_param('ssssi',$status,$status,$username,$timestamp,$mid); if($update->execute()){ $name=htmlspecialchars($firstNames[$j]??$username,ENT_QUOTES,'UTF-8'); $message.=$name.' : Durum başarıyla güncellendi.<br>'; }} $update->close();
 }
-require_once("dbconfig.php");
-			if(isset($_POST['submit2']))
-		{
-			$usrnm=$_POST["username"];
-			$fnm=$_POST["fname"];
-			$tmstmp=$_POST["timestamp"];
-			$stts=$_POST["status"];
-			$dt=$_POST["dov"];
-			$n=count($usrnm);
-			for($j=0;$j<$n;$j++)
-			{	
-				$updatequery="update book set Status='$stts[$j]' where username='$usrnm[$j]' and timestamp='$tmstmp[$j]'";
-				if (mysqli_query($conn, $updatequery)) 
-				{
-							echo "$fnm[$j] :Status updated successfully..!!<br>";
-
-				} 
-				else
-				{
-					echo "Error: " . $sql . "<br>" . mysqli_error($conn);
-				}
-			}
-			echo "Redirecting.....";
-			header( "Refresh:3; url=changebookingstatus.php");
-				
-		}
+$rows=[];
+if(isset($_POST['submit'])&&$did>0&&$dateselected!==''){
+ $query=$conn->prepare('SELECT b.Username,b.Fname,b.DOV,b.Timestamp,b.Status FROM book b INNER JOIN manager_clinic mc ON mc.CID=b.CID WHERE b.DOV=? AND b.DID=? AND mc.MID=? ORDER BY b.Timestamp ASC');
+ $query->bind_param('sii',$dateselected,$did,$mid); $query->execute(); $result=$query->get_result(); while($row=$result->fetch_assoc()){$rows[]=$row;} $query->close();
+}
 ?>
-	
-</body>
-</html>
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Randevu Durumu</title><link rel="stylesheet" href="main.css"><style>table{width:100%;border-collapse:collapse;border:4px solid black;padding:1px;font-size:25px}th{border:1px solid black;background-color:#4CAF50;color:white;text-align:left}tr,td{border:1px solid black;background-color:white;color:black}</style></head>
+<body style="background-image:url(mgrchange.jpg)"><div class="header"><ul><li style="float:left;border-right:none"><a href="mgrmenu.php" class="logo"><img src="../images/cal.png" width="30" height="30" alt="Takvim"><strong> Appointment </strong></a></li><li><a href="mgrmenu.php">Home</a></li></ul></div><div class="sucontainer">
+<?php if($message!==''):?><div><?php echo $message;?></div><?php endif;?>
+<form action="changebookingstatus.php" method="post"><label style="font-size:20px"><b>Doktor:</b></label><br><select name="doctor" class="demoInputBox" style="width:100%;height:35px;border-radius:9px" required><option value="">Doktor seçin</option><?php while($doctor=$doctorResult->fetch_assoc()):?><option value="<?php echo (int)$doctor['DID'];?>" <?php echo $did===(int)$doctor['DID']?'selected':'';?>><?php echo htmlspecialchars('Dr. '.$doctor['Name'],ENT_QUOTES,'UTF-8');?></option><?php endwhile;?></select><br><label><b>Tarih:</b></label><br><input type="date" name="dateselected" value="<?php echo htmlspecialchars($dateselected,ENT_QUOTES,'UTF-8');?>" required><br><br><button type="submit" name="submit" value="Submit">Randevuları Getir</button></form>
+<?php if(isset($_POST['submit'])&&$did>0&&$dateselected!==''):?><form action="changebookingstatus.php" method="post"><input type="hidden" name="doctor" value="<?php echo $did;?>"><input type="hidden" name="dateselected" value="<?php echo htmlspecialchars($dateselected,ENT_QUOTES,'UTF-8');?>"><table><tr><th>Kullanıcı</th><th>Hasta</th><th>Tarih</th><th>Timestamp</th><th>Durum</th></tr><?php if(!$rows):?><tr><td colspan="5">Bu tarihte randevu bulunamadı.</td></tr><?php else:foreach($rows as $row):?><tr><td><input type="text" name="username[]" value="<?php echo htmlspecialchars($row['Username'],ENT_QUOTES,'UTF-8');?>" readonly></td><td><input type="text" name="fname[]" value="<?php echo htmlspecialchars($row['Fname'],ENT_QUOTES,'UTF-8');?>" readonly></td><td><input type="date" value="<?php echo htmlspecialchars($row['DOV'],ENT_QUOTES,'UTF-8');?>" readonly></td><td><input type="text" name="timestamp[]" value="<?php echo htmlspecialchars($row['Timestamp'],ENT_QUOTES,'UTF-8');?>" readonly></td><td><select name="status[]"><?php foreach(['Bekliyor','Onaylandı','Tamamlandı','İptal Edildi'] as $option):?><option value="<?php echo htmlspecialchars($option,ENT_QUOTES,'UTF-8');?>" <?php echo $row['Status']===$option?'selected':'';?>><?php echo htmlspecialchars($option,ENT_QUOTES,'UTF-8');?></option><?php endforeach;?></select></td></tr><?php endforeach;endif;?></table><?php if($rows):?><button type="submit" name="submit2" value="Submit">Değişiklikleri Kaydet</button><?php endif;?></form><?php endif;?></div></body></html>
