@@ -1,64 +1,73 @@
-<html>
-<head>
-<link rel="stylesheet" href="main.css">
-<script src="https://code.jquery.com/jquery-2.1.1.min.js" type="text/javascript"></script>
-</head><?php include "dbconfig.php"; ?>
-<body style="background-image:url(images/cancelback.jpg)">
-	<div class="header">
-		<ul>
-			<li style="float:left;border-right:none"><a href="ulogin.php" class="logo"><img src="images/cal.png" width="30px" height="30px"><strong> Skylabs </strong>Appointment Booking System</a></li>
-			<li><a href="ulogin.php">Home</a></li>
-		</ul>
-	</div>
-	<form action="cancelbookingpatient.php" method="post">
-	<div class="sucontainer">
-		<label style="font-size:20px" >Select Appointment to Cancel:</label><br>
-		<select name="appointment" id="appointment-list" class="demoInputBox"  style="width:100%;height:35px;border-radius:9px">
-		<option value="">Select Appointment</option>
-		<?php
-		session_start();
-		$username=$_SESSION['username'];
-		$date= date('Y-m-d');
-		$sql1="SELECT * from book where username='".$username."'and status not like 'Cancelled by Patient' and DOV >='$date'";
-         $results=$conn->query($sql1); 
-		while($rs=$results->fetch_assoc()) {
-			$sql2="select * from doctor where did=".$rs["DID"];
-			$results2=$conn->query($sql2);
-				while($rs2=$results2->fetch_assoc()) {
-					$sql3="select * from clinic where cid=".$rs["CID"];
-					$results3=$conn->query($sql3);
-		while($rs3=$results3->fetch_assoc()) {
-			
-		?>
-		<option value="<?php echo $rs["Timestamp"]; ?>"><?php echo "Patient: ".$rs["Fname"]." Date: ".$rs["DOV"]." -Dr.".$rs2["name"]." -Clinic: ".$rs3["name"]." -Town: ".$rs3["town"]." - Booked on:".$rs["Timestamp"]; ?></option>
-		<?php
-		}
-		}
-		}
-		?>
-		</select>
-		
+<?php
+session_start();
+include 'dbconfig.php';
 
-			<button type="submit" style="position:center" name="submit" value="Submit">Submit</button>
-	</form>
-	<?php
-if(isset($_POST['submit']))
-{
-		$username=$_SESSION['username'];
-		$timestamp=$_POST['appointment'];
-		$updatequery="update book set Status='Cancelled by Patient' where username='$username' and timestamp= '$timestamp'";
-				if (mysqli_query($conn, $updatequery)) 
-				{
-							echo "Appointment Cancelled successfully..!!<br>";
-							header( "Refresh:2; url=ulogin.php");
-
-				} 
-				else
-				{
-					echo "Error: " . $updatequery . "<br>" . mysqli_error($conn);
-				}
-
+$username = $_SESSION['username'] ?? '';
+if ($username === '') {
+    header('Location: ulogin.php');
+    exit;
 }
+
+$message = '';
+$date = date('Y-m-d');
+
+if (isset($_POST['submit'])) {
+    $timestamp = $_POST['appointment'] ?? '';
+
+    $update = $conn->prepare("UPDATE book SET Status = 'İptal Edildi', active_slot_key = NULL WHERE Username = ? AND Timestamp = ? AND DOV >= ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı')");
+    $update->bind_param('sss', $username, $timestamp, $date);
+
+    if ($update->execute() && $update->affected_rows > 0) {
+        $message = 'Randevunuz başarıyla iptal edildi.';
+    } else {
+        $message = 'Randevu iptal edilemedi veya randevu zaten pasif durumda.';
+    }
+    $update->close();
+}
+
+$appointments = [];
+$list = $conn->prepare("SELECT appointment_id, Fname, DID, CID, DOV, appointment_time, Timestamp FROM book WHERE Username = ? AND DOV >= ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı') ORDER BY DOV ASC, appointment_time ASC");
+$list->bind_param('ss', $username, $date);
+$list->execute();
+$result = $list->get_result();
+while ($row = $result->fetch_assoc()) {
+    $appointments[] = $row;
+}
+$list->close();
 ?>
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Randevu İptali</title>
+<link rel="stylesheet" href="main.css">
+</head>
+<body style="background-image:url(images/cancelback.jpg)">
+<div class="header">
+    <ul>
+        <li style="float:left;border-right:none"><a href="ulogin.php" class="logo"><img src="images/cal.png" width="30" height="30" alt="Takvim"><strong> Appointment </strong></a></li>
+        <li><a href="ulogin.php">Ana Sayfa</a></li>
+    </ul>
+</div>
+
+<div class="sucontainer">
+    <form action="cancelbookingpatient.php" method="post">
+        <label style="font-size:20px">İptal edilecek randevuyu seçin:</label><br>
+        <select name="appointment" id="appointment-list" class="demoInputBox" style="width:100%;height:35px;border-radius:9px" required>
+            <option value="">Randevu seçin</option>
+            <?php foreach ($appointments as $appointment): ?>
+                <option value="<?php echo htmlspecialchars($appointment['Timestamp'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php echo htmlspecialchars('Hasta: ' . $appointment['Fname'] . ' Tarih: ' . $appointment['DOV'] . ' Saat: ' . substr($appointment['appointment_time'], 0, 5) . ' - Randevu No: ' . $appointment['appointment_id'], ENT_QUOTES, 'UTF-8'); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" name="submit" value="Submit">Randevuyu İptal Et</button>
+    </form>
+
+    <?php if ($message !== ''): ?>
+        <p><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></p>
+    <?php endif; ?>
+</div>
 </body>
 </html>
