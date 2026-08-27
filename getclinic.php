@@ -1,24 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Untitled Document</title>
-</head>
-<script type="text/javascript">//alert("sdfsd");</script>
-<body>
 <?php
-require_once("dbconfig.php");
-	$query ="SELECT * FROM clinic WHERE Town = '" . $_POST["townid"] . "'";
-	$results = $conn->query($query);
+session_start();
+if(!isset($_SESSION['user'])&&!isset($_SESSION['username'])){http_response_code(403);exit;}
+require_once 'dbconfig.php';
+$town=trim($_POST['townid']??'');
+echo '<option value="">Klinik seçin</option>';
+if($town==='')exit;
+$stmt=$conn->prepare('SELECT CID,Name,Town FROM clinic WHERE Town=? ORDER BY Name');
+$stmt->bind_param('s',$town);$stmt->execute();$result=$stmt->get_result();
+while($row=$result->fetch_assoc()){$label=$row['Name'].' — '.$row['Town'].' (CID-'.$row['CID'].')';echo '<option value="'.(int)$row['CID'].'">'.htmlspecialchars($label,ENT_QUOTES,'UTF-8').'</option>';}
+$stmt->close();
 ?>
-	<option value="">Select Clinic</option>
-<?php
-	while($rs=$results->fetch_assoc()) {
-?>
-	<option value="<?php echo $rs["cid"]; ?>"><?php echo $rs["name"]."-".$rs["town"]."(CID-".$rs["cid"].")"; ?></option>
-<?php
-
-}
-?>
-</body>
-</html>
