@@ -1,28 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Untitled Document</title>
-</head>
-<script type="text/javascript">//alert("sdfsd");</script>
-<body>
 <?php
-require_once("dbconfig.php");
-	$query ="SELECT * FROM doctor_availability WHERE CID =".$_POST["cid"];
-	$results = $conn->query($query);
+session_start();
+if(!isset($_SESSION['userName'])||$_SESSION['userName']!=='admin'){http_response_code(403);exit;}
+require 'dbconfig.php';$cid=(int)($_POST['cid']??0);echo '<option value="">Doktor seçin</option>';if($cid<=0)exit;
+$q=$conn->prepare('SELECT da.DID,da.Day,da.Starttime,da.Endtime,d.Name FROM doctor_availability da INNER JOIN doctor d ON d.DID=da.DID WHERE da.CID=? ORDER BY d.Name,da.Day,da.Starttime');$q->bind_param('i',$cid);$q->execute();$res=$q->get_result();$days=['Monday'=>'Pazartesi','Tuesday'=>'Salı','Wednesday'=>'Çarşamba','Thursday'=>'Perşembe','Friday'=>'Cuma','Saturday'=>'Cumartesi','Sunday'=>'Pazar'];while($r=$res->fetch_assoc()){$day=$days[$r['Day']]??$r['Day'];$value=(int)$r['DID'].' AND Day=\''.htmlspecialchars($r['Day'],ENT_QUOTES,'UTF-8').'\' AND Starttime=\''.htmlspecialchars($r['Starttime'],ENT_QUOTES,'UTF-8').'\'';$label='Dr. '.$r['Name'].' — '.$day.' ('.substr($r['Starttime'],0,5).'–'.substr($r['Endtime'],0,5).')';echo '<option value="'.htmlspecialchars($value,ENT_QUOTES,'UTF-8').'">'.htmlspecialchars($label,ENT_QUOTES,'UTF-8').'</option>';}$q->close();
 ?>
-	<option value="">Select Day & Time</option>
-<?php
-	while($rs=$results->fetch_assoc()) {
-		$query1="Select Name from doctor where DID=".$rs["did"];
-		$result1=$conn->query($query1);
-		while($rs1=$result1->fetch_assoc())
-		{
-?>
-	<option value="<?php echo $rs["did"]." AND Day='".$rs["day"]."' AND Starttime='".$rs["starttime"]."'"; ?>"><?php echo "Dr. ".$rs1["Name"]."-".$rs["day"]."(".$rs["starttime"]." to ".$rs["endtime"].")"; ?></option>
-<?php
-		}
-}
-?>
-</body>
-</html>
