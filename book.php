@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
                 $message = 'Seçtiğiniz saat geçerli bir randevu slotu değil.';
                 $messageType = 'error';
             } else {
-                $duplicate = $conn->prepare("SELECT appointment_id FROM book WHERE DID = ? AND CID = ? AND DOV = ? AND appointment_time = ? AND Status NOT LIKE '%cancel%' LIMIT 1");
+                $duplicate = $conn->prepare("SELECT appointment_id FROM book WHERE DID = ? AND CID = ? AND DOV = ? AND appointment_time = ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı', 'Cancelled by Patient') LIMIT 1");
                 $duplicate->bind_param('iiss', $did, $cid, $dov, $appointmentTime);
                 $duplicate->execute();
                 $occupied = $duplicate->get_result()->num_rows > 0;
@@ -64,12 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
                 } else {
                     $status = 'Bekliyor';
                     $timestamp = date('Y-m-d H:i:s');
-                    $insert = $conn->prepare('INSERT INTO book (Username, Fname, Gender, CID, DID, DOV, appointment_time, Timestamp, Status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                    $insert->bind_param('sssiissss', $username, $fname, $gender, $cid, $did, $dov, $appointmentTime, $timestamp, $status);
+                    $activeSlotKey = $did . '|' . $cid . '|' . $dov . '|' . $appointmentTime;
+
+                    $insert = $conn->prepare('INSERT INTO book (Username, Fname, Gender, CID, DID, DOV, appointment_time, Timestamp, Status, active_slot_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    $insert->bind_param('sssiisssss', $username, $fname, $gender, $cid, $did, $dov, $appointmentTime, $timestamp, $status, $activeSlotKey);
 
                     if ($insert->execute()) {
                         $message = 'Randevunuz başarıyla oluşturuldu. ' . $dateObject->format('d.m.Y') . ' ' . substr($appointmentTime, 0, 5) . ' için kaydınız alındı.';
                         $messageType = 'success';
+                    } elseif ($insert->errno === 1062) {
+                        $message = 'Bu saat az önce başka bir hasta tarafından alınmış. Lütfen başka bir saat seçin.';
+                        $messageType = 'error';
                     } else {
                         $message = 'Randevu oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.';
                         $messageType = 'error';
@@ -277,7 +282,7 @@ function loadSlots() {
 
 $('#doctor-list, #dov').on('change', function () { loadSlots(); updateSummary(); });
 $('#clinic-list, #doctor-list, #dov').on('change', updateSummary);
-    $('#booking-form').on('submit', function () {
+$('#booking-form').on('submit', function () {
     const button = $('#submit-button');
 
     if (button.prop('disabled')) {
