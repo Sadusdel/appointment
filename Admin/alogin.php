@@ -1,44 +1,12 @@
-<!DOCTYPE html>
-<html>
-<body style="background-image:url(doctordesk.jpg)">
-<link rel="stylesheet" href="main.css">
-	<form action="alogin.php" method="post">
-	<div class="header">
-				<ul>
-					<li style="float:left;border-right:none"><strong> Admin Login</strong></li>
-					<li><a href="cover.php">Home</a></li>
-				</ul>
-	</div>
-	<div class="sucontainer">
-		<label><b>Username:</b></label><br>
-		<input type="text" placeholder="Enter Username" name="uname" required><br>
-	
-		<label><b>Password:</b></label><br>
-		<input type="password" placeholder="Enter Password" name="pass" required><br><br>
-		
-		<div class="container" style="background-color:grey">
-			<button type="submit" name="submit" style="float:right">Log In</button>
-		</div>
-<?php 
-function SignIn() 
-{ 
+<?php
 session_start();
- {  
-	if($_POST['uname']=='admin' && $_POST['pass']=='admin') 
-	{ 
-		$_SESSION['userName'] = 'admin'; 
-		echo "Logging you in..";
-		header( "Refresh:3; url=mainpage.php");
-	} 
-	else { 
-		echo "Wrong Credentials!"; 
-		} 
-	}
-	} 
-	if(isset($_POST['submit'])) 
-	{ 
-		SignIn(); 
-	} 
-?>
-</body>
-</html>
+$error='';
+if(isset($_POST['submit'])){
+    $username=trim($_POST['uname']??'');$password=$_POST['pass']??'';
+    if($username==='admin' && $password==='admin'){
+        $_SESSION['userName']='admin';
+        header('Location: mainpage.php');exit;
+    }
+    $error='Kullanıcı adı veya şifre hatalı.';
+}
+?><!doctype html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yönetici Girişi | Appointment</title><link rel="stylesheet" href="adminmain.css"><style>.login-page{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 15% 10%,#e7f1ff 0,transparent 35%),var(--admin-page)}.login-card{width:min(430px,100%);padding:38px}.login-brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:20px;font-weight:850;margin-bottom:34px}.login-brand img{width:35px;height:35px;object-fit:contain}.login-brand span{color:var(--admin-primary)}.login-card h1{font-size:28px;margin:6px 0}.intro{color:var(--admin-muted);margin-bottom:24px}.login-actions{display:flex;gap:9px;margin-top:22px}.login-actions>*{flex:1}.back{display:block;text-align:center;margin-top:18px;color:var(--admin-muted);font-size:13px;text-decoration:none}@media(max-width:500px){.login-card{padding:28px 20px}}</style></head><body class="login-page"><main class="admin-card login-card"><a class="login-brand" href="cover.php"><img src="cal.png" alt="Appointment"><span>Appointment</span></a><span class="admin-eyebrow">YÖNETİCİ PANELİ</span><h1>Hoş geldiniz</h1><p class="intro">Yönetici hesabınızla sisteme giriş yapın.</p><?php if($error!==''):?><div class="alert error"><?php echo htmlspecialchars($error,ENT_QUOTES,'UTF-8');?></div><?php endif;?><form action="alogin.php" method="post"><div class="admin-field"><label for="uname">Kullanıcı adı</label><input id="uname" type="text" name="uname" placeholder="Kullanıcı adınız" autocomplete="username" required></div><div class="admin-field" style="margin-top:15px"><label for="pass">Şifre</label><input id="pass" type="password" name="pass" placeholder="Şifreniz" autocomplete="current-password" required></div><div class="login-actions"><a class="admin-button secondary" href="cover.php">Geri Dön</a><button class="admin-button" type="submit" name="submit">Giriş Yap</button></div></form><a class="back" href="../cover.php">Hasta girişine dön</a></main></body></html>
