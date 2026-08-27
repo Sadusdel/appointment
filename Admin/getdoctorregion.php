@@ -1,24 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Untitled Document</title>
-</head>
-<script type="text/javascript"></script>
-<body>
 <?php
-require_once("dbconfig.php");
-	$query1 ="SELECT * FROM doctor where UPPER(region) like UPPER('%".$_POST["city"]."%')";
-	$results1 = $conn->query($query1);
+session_start();
+if(!isset($_SESSION['userName'])||$_SESSION['userName']!=='admin'){http_response_code(403);exit;}
+require 'dbconfig.php';$city=trim($_POST['city']??'');echo '<option value="">Doktor seçin</option>';if($city==='')exit;
+$q=$conn->prepare('SELECT DID,Name,Region FROM doctor WHERE Region LIKE CONCAT("%",?,"%") ORDER BY Name');$q->bind_param('s',$city);$q->execute();$res=$q->get_result();while($r=$res->fetch_assoc())echo '<option value="'.(int)$r['DID'].'">Dr. '.htmlspecialchars($r['Name'].' — '.$r['Region'],ENT_QUOTES,'UTF-8').'</option>';$q->close();
 ?>
-	<option value="">Select Doctor</option>
-<?php
-	while($rs1=$results1->fetch_assoc()) {
-?>
-	<option value="<?php echo $rs1["did"]; ?>"><?php echo $rs1["name"]."-(Region: ".$rs1["region"].")"; ?></option>
-<?php
-
-}
-?>
-</body>
-</html>
