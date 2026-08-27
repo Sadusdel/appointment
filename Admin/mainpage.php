@@ -1,63 +1,24 @@
-<html>
-<head>
-<link rel="stylesheet" href="adminmain.css"> 
-</head>
-<body>
-
-<ul>
-<li class="dropdown"><font color="yellow" size="10">ADMIN MODE</font></li>
-<br>
-<h2>
-  <li class="dropdown">    
-  <a href="javascript:void(0)" class="dropbtn">Doctor</a>
-    <div class="dropdown-content">
-      <a href="adddoctor.php">Add Doctor</a>
-      <a href="deletedoctor.php">Delete Doctor</a>
-      <a href="showdoctor.php">Show Doctor</a>
-      <a href="showdoctorschedule.php">Show Doctor Schedule</a>
-      <a href="showappointments.php">Randevular</a>
-    </div>
-  </li>
-  
-  <li class="dropdown">
-  <a href="javascript:void(0)" class="dropbtn">Clinic</a>
-    <div class="dropdown-content">
-      <a href="addclinic.php">Add Clinic</a>
-      <a href="deleteclinic.php">Delete Clinic</a>
-      <a href="adddoctorclinic.php">Assign Doctor to Clinic</a>
-	  <a href="addmanagerclinic.php">Assign Manager to Clinic</a>
-	  <a href="deletedoctorclinic.php">Delete Doctor from Clinic</a>
-	  <a href="deletemanagerclinic.php">Delete Manager from Clinic</a>
-	  <a href="showclinic.php">Show Clinic</a>
-    </div>
-  </li>
-  <li class="dropdown">    
-  <a href="javascript:void(0)" class="dropbtn">Manager</a>
-    <div class="dropdown-content">
-      <a href="addmanager.php">Add Manager</a>
-      <a href="deletemanager.php">Delete Manager</a>
-	  <a href="showmanager.php">Show Manager</a>
-    </div>
-  </li>
-  
-    <li>  
-	<form method="post" action="mainpage.php">	
-	<button type="submit" class="cancelbtn" name="logout" style="float:right;font-size:22px"><b>Log Out</b></button>
-	</form>
-  </li>
-	
-</ul>
-</h2>
-<p>
-
-<center><h1>********WELCOME ADMIN*******</h1> 
 <?php
-session_start();	
-	if(isset($_POST['logout'])){
-		session_unset();
-		session_destroy();
-		header( "Refresh:1; url=../cover.php"); 
-	}
+session_start();
+if (!isset($_SESSION['userName']) || $_SESSION['userName'] !== 'admin') { header('Location: alogin.php'); exit; }
+if (isset($_POST['logout'])) { session_unset(); session_destroy(); header('Location: ../cover.php'); exit; }
 ?>
-</body>
-</html>
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Paneli | Appointment</title><link rel="stylesheet" href="adminmain.css">
+<style>
+.admin-page{min-height:100vh;background:var(--page)}.admin-wrap{width:min(1180px,calc(100% - 32px));margin:30px auto 60px}.admin-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}.admin-hero h1{margin:5px 0 7px;font-size:34px}.admin-hero p{margin:0;color:var(--muted)}.logout{width:auto}.admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.admin-card{padding:22px}.admin-card h2{margin:0 0 7px;font-size:19px}.admin-card p{margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.5}.admin-links{display:grid;gap:7px}.admin-links a{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1px solid var(--border);border-radius:9px;text-decoration:none;color:var(--text);font-size:13px;font-weight:700;background:#fff}.admin-links a:hover{border-color:#9bbef0;background:#f7fbff;color:#1769e0}.arrow{color:#9aa6b6}.quick{margin-top:15px;display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.quick a{display:block;padding:18px;text-decoration:none;color:#fff;background:#1769e0;border-radius:13px;box-shadow:0 8px 20px rgba(23,105,224,.15)}.quick strong{display:block;margin-bottom:4px}.quick span{font-size:12px;opacity:.82}@media(max-width:850px){.admin-grid{grid-template-columns:1fr 1fr}.quick{grid-template-columns:1fr 1fr}}@media(max-width:600px){.admin-wrap{width:calc(100% - 20px);margin-top:18px}.admin-hero{align-items:flex-start;flex-direction:column}.admin-hero h1{font-size:27px}.admin-hero .button{width:100%}.admin-grid,.quick{grid-template-columns:1fr}}
+</style></head>
+<body class="admin-page">
+<header class="site-header"><div class="header-inner"><a href="mainpage.php" class="brand"><img src="../images/cal.png" alt="Appointment"><span>Appointment</span></a><nav><a class="active" href="mainpage.php">Yönetim Paneli</a><a href="../cover.php">Siteyi Görüntüle</a></nav></div></header>
+<main class="admin-wrap">
+<section class="admin-hero"><div><span class="eyebrow">YÖNETİCİ PANELİ</span><h1>Hoş geldiniz, Admin</h1><p>Doktor, klinik, manager ve randevu işlemlerini tek merkezden yönetin.</p></div><form method="post"><button class="button secondary logout" name="logout" type="submit">Çıkış Yap</button></form></section>
+<section class="admin-grid">
+<article class="card admin-card"><h2>Doktor Yönetimi</h2><p>Doktor kayıtlarını, bilgilerini ve çalışma programlarını yönetin.</p><div class="admin-links"><a href="adddoctor.php">Doktor Ekle <span class="arrow">→</span></a><a href="deletedoctor.php">Doktor Sil <span class="arrow">→</span></a><a href="showdoctor.php">Doktorları Gör <span class="arrow">→</span></a><a href="showdoctorschedule.php">Çalışma Programı <span class="arrow">→</span></a><a href="showappointments.php">Randevular <span class="arrow">→</span></a></div></article>
+<article class="card admin-card"><h2>Klinik Yönetimi</h2><p>Kliniklerinizi ve doktor/manager atamalarını yönetin.</p><div class="admin-links"><a href="addclinic.php">Klinik Ekle <span class="arrow">→</span></a><a href="deleteclinic.php">Klinik Sil <span class="arrow">→</span></a><a href="showclinic.php">Klinikleri Gör <span class="arrow">→</span></a><a href="adddoctorclinic.php">Doktor Ata <span class="arrow">→</span></a><a href="addmanagerclinic.php">Manager Ata <span class="arrow">→</span></a><a href="deletedoctorclinic.php">Doktor Atamasını Sil <span class="arrow">→</span></a><a href="deletemanagerclinic.php">Manager Atamasını Sil <span class="arrow">→</span></a></div></article>
+<article class="card admin-card"><h2>Manager Yönetimi</h2><p>Manager hesaplarını oluşturun, görüntüleyin ve yönetin.</p><div class="admin-links"><a href="addmanager.php">Manager Ekle <span class="arrow">→</span></a><a href="deletemanager.php">Manager Sil <span class="arrow">→</span></a><a href="showmanager.php">Managerları Gör <span class="arrow">→</span></a></div></article>
+</section>
+<section class="quick"><a href="showappointments.php"><strong>Randevuları Aç</strong><span>Randevu kayıtlarını görüntüle</span></a><a href="showdoctor.php"><strong>Doktorları Aç</strong><span>Doktor listesini yönet</span></a><a href="showclinic.php"><strong>Klinikleri Aç</strong><span>Klinik listesini yönet</span></a></section>
+</main></body></html>
