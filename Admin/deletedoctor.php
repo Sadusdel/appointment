@@ -1,5 +1,6 @@
 <?php
 session_start();
+if(!isset($_SESSION['userName'])||$_SESSION['userName']!=='admin'){header('Location: alogin.php');exit;}
 if(isset($_POST['logout'])){session_unset();session_destroy();header('Location: alogin.php');exit;}
 require 'dbconfig.php';
 $message='';$messageType='';
