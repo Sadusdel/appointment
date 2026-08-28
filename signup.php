@@ -1,23 +1,41 @@
 <?php
+session_start();
 $message = '';
 $messageType = '';
 
-if (isset($_POST['signup'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
     $required = ['fname', 'dob', 'gender', 'contact', 'username', 'email', 'pwd', 'pwdr'];
     $valid = true;
     foreach ($required as $field) {
-        if (empty($_POST[$field])) { $valid = false; break; }
+        if (trim((string)($_POST[$field] ?? '')) === '') { $valid = false; break; }
     }
+
+    $password = (string)($_POST['pwd'] ?? '');
+    $passwordRepeat = (string)($_POST['pwdr'] ?? '');
+    $username = trim((string)($_POST['username'] ?? ''));
+    $email = trim((string)($_POST['email'] ?? ''));
+    $name = trim((string)($_POST['fname'] ?? ''));
 
     if (!$valid) {
         $message = 'Lütfen tüm zorunlu alanları doldurun.';
         $messageType = 'error';
-    } elseif ($_POST['pwd'] !== $_POST['pwdr']) {
+    } elseif ($password !== $passwordRepeat) {
         $message = 'Şifreler eşleşmiyor.';
+        $messageType = 'error';
+    } elseif (strlen($password) < 8) {
+        $message = 'Şifre en az 8 karakter olmalıdır.';
+        $messageType = 'error';
+    } elseif (strlen($username) > 20 || !preg_match('/^[A-Za-z0-9_.-]+$/', $username)) {
+        $message = 'Kullanıcı adı yalnızca harf, rakam, nokta, alt çizgi ve tire içerebilir.';
+        $messageType = 'error';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = 'Geçerli bir e-posta adresi girin.';
+        $messageType = 'error';
+    } elseif (strlen($name) > 30) {
+        $message = 'Ad soyad çok uzun.';
         $messageType = 'error';
     } else {
         include 'dbconfig.php';
-        $username = $_POST['username'];
         $check = $conn->prepare('SELECT Username FROM Patient WHERE Username = ? LIMIT 1');
         $check->bind_param('s', $username);
         $check->execute();
@@ -28,26 +46,29 @@ if (isset($_POST['signup'])) {
             $message = 'Bu kullanıcı adı zaten kullanılıyor.';
             $messageType = 'error';
         } else {
-            $name = $_POST['fname'];
-            $gender = $_POST['gender'];
-            $dob = $_POST['dob'];
-            $contact = $_POST['contact'];
-            $email = $_POST['email'];
-            $password = $_POST['pwd'];
+            $gender = trim((string)$_POST['gender']);
+            $dob = trim((string)$_POST['dob']);
+            $contact = trim((string)$_POST['contact']);
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
             $stmt = $conn->prepare('INSERT INTO Patient (Name, Gender, DOB, Contact, Email, Username, Password) VALUES (?, ?, ?, ?, ?, ?, ?)');
-            $stmt->bind_param('sssssss', $name, $gender, $dob, $contact, $email, $username, $password);
-            if ($stmt->execute()) {
-                $message = 'Hesabınız başarıyla oluşturuldu. Giriş sayfasına yönlendiriliyorsunuz.';
-                $messageType = 'success';
-                header('Refresh:2; url=cover.php');
-            } else {
+            $stmt->bind_param('sssssss', $name, $gender, $dob, $contact, $email, $username, $passwordHash);
+            try {
+                if ($stmt->execute()) {
+                    $message = 'Hesabınız başarıyla oluşturuldu. Giriş sayfasına yönlendiriliyorsunuz.';
+                    $messageType = 'success';
+                    header('Refresh:2; url=cover.php');
+                } else {
+                    $message = 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.';
+                    $messageType = 'error';
+                }
+            } catch (mysqli_sql_exception $e) {
                 $message = 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.';
                 $messageType = 'error';
             }
             $stmt->close();
         }
-        mysqli_close($conn);
+        $conn->close();
     }
 }
 ?>
@@ -68,73 +89,17 @@ if (isset($_POST['signup'])) {
         .register-info h1 { margin-top: 14px; font-size: 34px; }
         .register-info p { color: rgba(255,255,255,.84); }
         .register-benefits { margin-top: 28px; display: grid; gap: 13px; }
-        .benefit { display: flex; gap: 10px; align-items: flex-start; color: rgba(255,255,255,.92); font-size: 14px; line-height: 1.5; }
-        .benefit span { width: 23px; height: 23px; flex: 0 0 23px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.16); font-size: 12px; }
+        .register-benefit { padding: 13px 15px; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; background: rgba(255,255,255,.08); }
         .register-form { padding: 42px; background: #fff; }
-        .register-form-header { margin-bottom: 24px; }
-        .register-form-header h2 { font-size: 27px; }
-        .gender-options { display: flex; gap: 8px; flex-wrap: wrap; }
-        .gender-option { display: inline-flex; align-items: center; gap: 7px; padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: 10px; color: #566174; cursor: pointer; }
-        .gender-option:has(input:checked) { color: #1557b0; border-color: #8db8f2; background: #eef5ff; }
-        .gender-option input { margin: 0; }
-        .terms { margin: 18px 0 0; font-size: 12px; color: var(--muted); }
-        .terms a { color: var(--primary); font-weight: 700; }
-        .form-actions { display: flex; gap: 10px; margin-top: 22px; }
-        .form-actions .button { flex: 1; }
-        @media(max-width:760px) {
-            .register-layout { width: min(100% - 20px, 900px); margin-top: 20px; }
-            .register-card { grid-template-columns: 1fr; }
-            .register-info { padding: 26px 22px; }
-            .register-info h1 { font-size: 28px; }
-            .register-benefits { margin-top: 20px; }
-            .register-form { padding: 24px 18px; }
-            .register-header nav a:not(.active) { display: none; }
-        }
+        .register-form h2 { margin-top: 0; }
+        .register-form .form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+        .register-form .field-full { grid-column: 1/-1; }
+        .register-form button { margin-top: 8px; width: 100%; }
+        .register-back { display: inline-block; margin-top: 18px; font-size: 13px; font-weight: 700; }
+        @media(max-width:760px){.register-card{grid-template-columns:1fr}.register-info,.register-form{padding:28px 22px}.register-form .form-grid{grid-template-columns:1fr}.register-form .field-full{grid-column:auto}}
     </style>
 </head>
 <body class="register-page">
-<header class="site-header register-header">
-    <div class="header-inner">
-        <a href="cover.php" class="brand"><img src="images/cal.png" alt="Takvim"><span>Appointment</span></a>
-        <nav><a href="cover.php">Ana Sayfa</a><a class="active" href="signup.php">Kayıt Ol</a></nav>
-    </div>
-</header>
-
-<main class="register-layout">
-    <section class="card register-card">
-        <aside class="register-info">
-            <span class="eyebrow" style="color:#d9e9ff">APPOINTMENT</span>
-            <h1>Randevu yönetimini kolaylaştırın.</h1>
-            <p>Ücretsiz hasta hesabınızı oluşturun ve size uygun doktor ile zamanı birkaç adımda seçin.</p>
-            <div class="register-benefits">
-                <div class="benefit"><span>✓</span><div>Randevularınızı tek ekrandan takip edin.</div></div>
-                <div class="benefit"><span>✓</span><div>Uygun tarih ve saatleri kolayca görüntüleyin.</div></div>
-                <div class="benefit"><span>✓</span><div>Randevu durumunuzu anlık olarak takip edin.</div></div>
-            </div>
-        </aside>
-        <div class="register-form">
-            <div class="register-form-header">
-                <span class="eyebrow">HESAP OLUŞTUR</span>
-                <h2>Hasta kaydı</h2>
-                <p>Bilgilerinizi eksiksiz doldurarak hesabınızı oluşturun.</p>
-            </div>
-            <?php if ($message !== ''): ?><div class="alert <?php echo htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
-            <form action="signup.php" method="post">
-                <div class="form-grid">
-                    <div class="field field-full"><label for="fname">Ad Soyad</label><input id="fname" type="text" name="fname" placeholder="Adınızı ve soyadınızı girin" required value="<?php echo htmlspecialchars($_POST['fname'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
-                    <div class="field"><label for="dob">Doğum tarihi</label><input id="dob" type="date" name="dob" required value="<?php echo htmlspecialchars($_POST['dob'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
-                    <div class="field"><label for="contact">Telefon</label><input id="contact" type="tel" name="contact" placeholder="05XX XXX XX XX" required value="<?php echo htmlspecialchars($_POST['contact'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
-                    <div class="field field-full"><label>Cinsiyet</label><div class="gender-options"><label class="gender-option"><input type="radio" name="gender" value="female" required> Kadın</label><label class="gender-option"><input type="radio" name="gender" value="male"> Erkek</label><label class="gender-option"><input type="radio" name="gender" value="other"> Belirtmek istemiyorum</label></div></div>
-                    <div class="field"><label for="username">Kullanıcı adı</label><input id="username" type="text" name="username" placeholder="Kullanıcı adınız" autocomplete="username" required></div>
-                    <div class="field"><label for="email">E-posta</label><input id="email" type="email" name="email" placeholder="ornek@mail.com" autocomplete="email" required></div>
-                    <div class="field"><label for="pwd">Şifre</label><input id="pwd" type="password" name="pwd" placeholder="Şifreniz" autocomplete="new-password" required></div>
-                    <div class="field"><label for="pwdr">Şifre tekrar</label><input id="pwdr" type="password" name="pwdr" placeholder="Şifrenizi tekrar girin" autocomplete="new-password" required></div>
-                </div>
-                <p class="terms">Kayıt olarak kullanım koşullarını kabul etmiş olursunuz.</p>
-                <div class="form-actions"><a href="cover.php" class="button secondary">Geri Dön</a><button type="submit" name="signup" class="button">Hesap Oluştur</button></div>
-            </form>
-        </div>
-    </section>
-</main>
-</body>
-</html>
+<header class="site-header register-header"><div class="header-inner"><a href="cover.php" class="brand"><img src="images/cal.png" alt="Takvim"><span>Appointment</span></a><nav><a href="cover.php">Ana Sayfa</a></nav></div></header>
+<main class="register-layout"><section class="card register-card"><aside class="register-info"><span class="eyebrow">YENİ HESAP</span><h1>Randevularınızı tek yerden yönetin.</h1><p>Güvenli hesabınızı oluşturun ve uygun doktor ile zamanı kolayca seçin.</p><div class="register-benefits"><div class="register-benefit">Doktor ve klinik seçimi</div><div class="register-benefit">Gerçek zamanlı uygun saatler</div><div class="register-benefit">Randevuları görüntüleme ve iptal</div></div></aside><div class="register-form"><h2>Hesap oluştur</h2><?php if($message!==''): ?><div class="alert <?php echo htmlspecialchars($messageType,ENT_QUOTES,'UTF-8'); ?>" role="alert"><?php echo htmlspecialchars($message,ENT_QUOTES,'UTF-8'); ?></div><?php endif; ?><form method="post" action="signup.php"><div class="form-grid"><div class="field field-full"><label for="fname">Ad soyad</label><input id="fname" type="text" name="fname" maxlength="30" autocomplete="name" required></div><div class="field"><label for="dob">Doğum tarihi</label><input id="dob" type="date" name="dob" required></div><div class="field"><label for="gender">Cinsiyet</label><select id="gender" name="gender" required><option value="">Seçin</option><option value="female">Kadın</option><option value="male">Erkek</option><option value="other">Belirtmek istemiyorum</option></select></div><div class="field"><label for="contact">Telefon</label><input id="contact" type="tel" name="contact" autocomplete="tel" required></div><div class="field"><label for="email">E-posta</label><input id="email" type="email" name="email" maxlength="30" autocomplete="email" required></div><div class="field"><label for="username">Kullanıcı adı</label><input id="username" type="text" name="username" maxlength="20" autocomplete="username" required></div><div class="field"><label for="pwd">Şifre</label><input id="pwd" type="password" name="pwd" minlength="8" autocomplete="new-password" required></div><div class="field"><label for="pwdr">Şifre tekrar</label><input id="pwdr" type="password" name="pwdr" minlength="8" autocomplete="new-password" required></div></div><button class="button" type="submit" name="signup" value="1">Hesap Oluştur</button></form><a class="register-back" href="cover.php">← Giriş sayfasına dön</a></div></section></main>
+</body></html>
