@@ -8,25 +8,37 @@ if ($username === '') {
     exit;
 }
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrfToken = $_SESSION['csrf_token'];
+
 $message = '';
 $date = date('Y-m-d');
 
-if (isset($_POST['submit'])) {
-    $timestamp = $_POST['appointment'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $postedToken = $_POST['csrf_token'] ?? '';
+    $appointmentId = filter_input(INPUT_POST, 'appointment_id', FILTER_VALIDATE_INT);
 
-    $update = $conn->prepare("UPDATE book SET Status = 'İptal Edildi', active_slot_key = NULL WHERE Username = ? AND Timestamp = ? AND DOV >= ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı')");
-    $update->bind_param('sss', $username, $timestamp, $date);
-
-    if ($update->execute() && $update->affected_rows > 0) {
-        $message = 'Randevunuz başarıyla iptal edildi.';
+    if (!is_string($postedToken) || !hash_equals($csrfToken, $postedToken)) {
+        $message = 'Geçersiz güvenlik doğrulaması. Lütfen sayfayı yenileyip tekrar deneyin.';
+    } elseif (!$appointmentId || $appointmentId < 1) {
+        $message = 'Geçersiz randevu seçimi.';
     } else {
-        $message = 'Randevu iptal edilemedi veya randevu zaten pasif durumda.';
+        $update = $conn->prepare("UPDATE book SET Status = 'İptal Edildi', active_slot_key = NULL WHERE appointment_id = ? AND Username = ? AND DOV >= ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı')");
+        $update->bind_param('iss', $appointmentId, $username, $date);
+
+        if ($update->execute() && $update->affected_rows > 0) {
+            $message = 'Randevunuz başarıyla iptal edildi.';
+        } else {
+            $message = 'Randevu iptal edilemedi veya randevu zaten pasif durumda.';
+        }
+        $update->close();
     }
-    $update->close();
 }
 
 $appointments = [];
-$list = $conn->prepare("SELECT appointment_id, Fname, DID, CID, DOV, appointment_time, Timestamp FROM book WHERE Username = ? AND DOV >= ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı') ORDER BY DOV ASC, appointment_time ASC");
+$list = $conn->prepare("SELECT appointment_id, Fname, DID, CID, DOV, appointment_time FROM book WHERE Username = ? AND DOV >= ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı') ORDER BY DOV ASC, appointment_time ASC");
 $list->bind_param('ss', $username, $date);
 $list->execute();
 $result = $list->get_result();
@@ -53,11 +65,12 @@ $list->close();
 
 <div class="sucontainer">
     <form action="cancelbookingpatient.php" method="post">
-        <label style="font-size:20px">İptal edilecek randevuyu seçin:</label><br>
-        <select name="appointment" id="appointment-list" class="demoInputBox" style="width:100%;height:35px;border-radius:9px" required>
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
+        <label for="appointment-list" style="font-size:20px">İptal edilecek randevuyu seçin:</label><br>
+        <select name="appointment_id" id="appointment-list" class="demoInputBox" style="width:100%;height:35px;border-radius:9px" required>
             <option value="">Randevu seçin</option>
             <?php foreach ($appointments as $appointment): ?>
-                <option value="<?php echo htmlspecialchars($appointment['Timestamp'], ENT_QUOTES, 'UTF-8'); ?>">
+                <option value="<?php echo (int)$appointment['appointment_id']; ?>">
                     <?php echo htmlspecialchars('Hasta: ' . $appointment['Fname'] . ' Tarih: ' . $appointment['DOV'] . ' Saat: ' . substr($appointment['appointment_time'], 0, 5) . ' - Randevu No: ' . $appointment['appointment_id'], ENT_QUOTES, 'UTF-8'); ?>
                 </option>
             <?php endforeach; ?>
