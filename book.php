@@ -12,7 +12,10 @@ if ($username === '') {
 $message = '';
 $messageType = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
+// The submit button is disabled by the JS submit handler immediately before
+// native form serialization. Therefore do not depend on $_POST['submit'] here.
+// The HTTP method is the reliable indication that this form was submitted.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $fname = trim($_POST['fname'] ?? '');
         $gender = $_POST['gender'] ?? '';
@@ -71,8 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
                 } else {
                     $activeSlotKey = $did . '|' . $cid . '|' . $dov . '|' . $appointmentTime;
 
-                    // Only active bookings have a non-NULL active_slot_key.
-                    // Checking this key also avoids character-set comparisons on Status.
                     $duplicate = $conn->prepare('SELECT appointment_id FROM book WHERE active_slot_key = ? LIMIT 1');
                     $duplicate->bind_param('s', $activeSlotKey);
                     $duplicate->execute();
@@ -312,11 +313,9 @@ $('#doctor-list, #dov').on('change', function () { loadSlots(); updateSummary();
 $('#clinic-list, #doctor-list, #dov').on('change', updateSummary);
 $('#booking-form').on('submit', function () {
     const button = $('#submit-button');
-
     if (button.prop('disabled')) {
         return false;
     }
-
     button.prop('disabled', true);
     button.text('Randevu oluşturuluyor...');
 });
