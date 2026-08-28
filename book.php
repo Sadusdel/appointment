@@ -1,4 +1,5 @@
 <?php
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 session_start();
 require_once 'dbconfig.php';
 
@@ -12,77 +13,104 @@ $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
-    $fname = trim($_POST['fname'] ?? '');
-    $gender = $_POST['gender'] ?? '';
-    $cid = (int)($_POST['Clinic'] ?? 0);
-    $did = (int)($_POST['Doctor'] ?? 0);
-    $dov = $_POST['dov'] ?? '';
-    $appointmentTime = $_POST['appointment_time'] ?? '';
+    try {
+        $fname = trim($_POST['fname'] ?? '');
+        $gender = $_POST['gender'] ?? '';
+        $cid = (int)($_POST['Clinic'] ?? 0);
+        $did = (int)($_POST['Doctor'] ?? 0);
+        $dov = $_POST['dov'] ?? '';
+        $appointmentTime = $_POST['appointment_time'] ?? '';
 
-    $allowedGender = ['female', 'male', 'other'];
-    $dateObject = DateTime::createFromFormat('Y-m-d', $dov);
-    $timeObject = DateTime::createFromFormat('H:i:s', $appointmentTime);
-    $today = new DateTime('today');
-    $lastAllowedDay = (new DateTime('today'))->modify('+7 days');
+        $allowedGender = ['female', 'male', 'other'];
+        $dateObject = DateTime::createFromFormat('!Y-m-d', $dov);
+        $timeObject = DateTime::createFromFormat('!H:i:s', $appointmentTime);
+        $dateErrors = DateTime::getLastErrors();
+        if ($dateErrors === false) {
+            $dateErrors = ['warning_count' => 0, 'error_count' => 0];
+        }
+        $today = new DateTime('today');
+        $lastAllowedDay = (new DateTime('today'))->modify('+7 days');
 
-    if ($fname === '' || strlen($fname) > 120 || !in_array($gender, $allowedGender, true) || $cid <= 0 || $did <= 0 || !$dateObject || !$timeObject) {
-        $message = 'Lütfen tüm alanları geçerli şekilde doldurun.';
-        $messageType = 'error';
-    } elseif ($dateObject < $today || $dateObject > $lastAllowedDay) {
-        $message = 'Randevu tarihi bugün ile 7 gün sonrası arasında olmalıdır.';
-        $messageType = 'error';
-    } else {
-        $dayName = $dateObject->format('l');
-        $availability = $conn->prepare('SELECT starttime, endtime FROM doctor_availability WHERE DID = ? AND CID = ? AND day = ? LIMIT 1');
-        $availability->bind_param('iis', $did, $cid, $dayName);
-        $availability->execute();
-        $availabilityResult = $availability->get_result();
-        $availabilityRow = $availabilityResult->fetch_assoc();
-        $availability->close();
-
-        if (!$availabilityRow) {
-            $message = 'Seçtiğiniz doktor bu tarihte çalışmıyor.';
+        if (
+            $fname === '' ||
+            strlen($fname) > 30 ||
+            !in_array($gender, $allowedGender, true) ||
+            $cid <= 0 ||
+            $did <= 0 ||
+            !$dateObject ||
+            !$timeObject ||
+            $dateErrors['warning_count'] > 0 ||
+            $dateErrors['error_count'] > 0
+        ) {
+            $message = 'Lütfen tüm alanları geçerli şekilde doldurun.';
+            $messageType = 'error';
+        } elseif ($dateObject < $today || $dateObject > $lastAllowedDay) {
+            $message = 'Randevu tarihi bugün ile 7 gün sonrası arasında olmalıdır.';
             $messageType = 'error';
         } else {
-            $selectedSeconds = strtotime($appointmentTime);
-            $startSeconds = strtotime($availabilityRow['starttime']);
-            $endSeconds = strtotime($availabilityRow['endtime']);
-            $validSlot = $selectedSeconds >= $startSeconds && $selectedSeconds < $endSeconds && (($selectedSeconds - $startSeconds) % 1800 === 0);
-            if (!$validSlot) {
-                $message = 'Seçtiğiniz saat geçerli bir randevu slotu değil.';
+            $dayName = $dateObject->format('l');
+            $availability = $conn->prepare('SELECT starttime, endtime FROM doctor_availability WHERE DID = ? AND CID = ? AND day = ? LIMIT 1');
+            $availability->bind_param('iis', $did, $cid, $dayName);
+            $availability->execute();
+            $availabilityResult = $availability->get_result();
+            $availabilityRow = $availabilityResult->fetch_assoc();
+            $availability->close();
+
+            if (!$availabilityRow) {
+                $message = 'Seçtiğiniz doktor bu tarihte çalışmıyor.';
                 $messageType = 'error';
             } else {
-                $duplicate = $conn->prepare("SELECT appointment_id FROM book WHERE DID = ? AND CID = ? AND DOV = ? AND appointment_time = ? AND Status NOT IN ('İptal Edildi', 'Tamamlandı', 'Cancelled by Patient') LIMIT 1");
-                $duplicate->bind_param('iiss', $did, $cid, $dov, $appointmentTime);
-                $duplicate->execute();
-                $occupied = $duplicate->get_result()->num_rows > 0;
-                $duplicate->close();
+                $selectedSeconds = strtotime($appointmentTime);
+                $startSeconds = strtotime($availabilityRow['starttime']);
+                $endSeconds = strtotime($availabilityRow['endtime']);
+                $validSlot = $selectedSeconds >= $startSeconds && $selectedSeconds < $endSeconds && (($selectedSeconds - $startSeconds) % 1800 === 0);
 
-                if ($occupied) {
-                    $message = 'Bu saat az önce başka bir hasta tarafından alınmış. Lütfen başka bir saat seçin.';
+                if (!$validSlot) {
+                    $message = 'Seçtiğiniz saat geçerli bir randevu slotu değil.';
                     $messageType = 'error';
                 } else {
-                    $status = 'Bekliyor';
-                    $timestamp = date('Y-m-d H:i:s');
                     $activeSlotKey = $did . '|' . $cid . '|' . $dov . '|' . $appointmentTime;
 
-                    $insert = $conn->prepare('INSERT INTO book (Username, Fname, Gender, CID, DID, DOV, appointment_time, Timestamp, Status, active_slot_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                    $insert->bind_param('sssiisssss', $username, $fname, $gender, $cid, $did, $dov, $appointmentTime, $timestamp, $status, $activeSlotKey);
+                    // Only active bookings have a non-NULL active_slot_key.
+                    // Checking this key also avoids character-set comparisons on Status.
+                    $duplicate = $conn->prepare('SELECT appointment_id FROM book WHERE active_slot_key = ? LIMIT 1');
+                    $duplicate->bind_param('s', $activeSlotKey);
+                    $duplicate->execute();
+                    $occupied = $duplicate->get_result()->num_rows > 0;
+                    $duplicate->close();
 
-                    if ($insert->execute()) {
-                        $message = 'Randevunuz başarıyla oluşturuldu. ' . $dateObject->format('d.m.Y') . ' ' . substr($appointmentTime, 0, 5) . ' için kaydınız alındı.';
-                        $messageType = 'success';
-                    } elseif ($insert->errno === 1062) {
+                    if ($occupied) {
                         $message = 'Bu saat az önce başka bir hasta tarafından alınmış. Lütfen başka bir saat seçin.';
                         $messageType = 'error';
                     } else {
-                        $message = 'Randevu oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.';
-                        $messageType = 'error';
+                        $status = 'Bekliyor';
+                        $timestamp = date('Y-m-d H:i:s');
+
+                        $insert = $conn->prepare('INSERT INTO book (Username, Fname, Gender, CID, DID, DOV, appointment_time, Timestamp, Status, active_slot_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                        $insert->bind_param('sssiisssss', $username, $fname, $gender, $cid, $did, $dov, $appointmentTime, $timestamp, $status, $activeSlotKey);
+
+                        try {
+                            $insert->execute();
+                            $message = 'Randevunuz başarıyla oluşturuldu. ' . $dateObject->format('d.m.Y') . ' ' . substr($appointmentTime, 0, 5) . ' için kaydınız alındı.';
+                            $messageType = 'success';
+                        } catch (mysqli_sql_exception $e) {
+                            if ((int)$e->getCode() === 1062) {
+                                $message = 'Bu saat az önce başka bir hasta tarafından alınmış. Lütfen başka bir saat seçin.';
+                            } else {
+                                error_log('Appointment INSERT failed: ' . $e->getMessage());
+                                $message = 'Randevu oluşturulurken veritabanı hatası oluştu. Lütfen tekrar deneyin.';
+                            }
+                            $messageType = 'error';
+                        }
+                        $insert->close();
                     }
-                    $insert->close();
                 }
             }
         }
+    } catch (Throwable $e) {
+        error_log('Appointment booking error: ' . $e->getMessage());
+        $message = 'Randevu işlemi sırasında bir hata oluştu: ' . $e->getMessage();
+        $messageType = 'error';
     }
 }
 
@@ -126,14 +154,14 @@ $cities = $conn->query('SELECT DISTINCT city FROM clinic ORDER BY city ASC');
             <div class="form-grid">
                 <div class="field field-full">
                     <label for="fname">Hasta adı soyadı</label>
-                    <input id="fname" type="text" name="fname" maxlength="120" placeholder="Ad Soyad" required>
+                    <input id="fname" type="text" name="fname" maxlength="30" placeholder="Ad Soyad" required>
                 </div>
                 <div class="field field-full">
-                    <label>Cinsiyet</label>
+                    <label for="gender-female">Cinsiyet</label>
                     <div class="radio-row">
-                        <label><input type="radio" name="gender" value="female" required> Kadın</label>
-                        <label><input type="radio" name="gender" value="male"> Erkek</label>
-                        <label><input type="radio" name="gender" value="other"> Belirtmek istemiyorum</label>
+                        <label><input id="gender-female" type="radio" name="gender" value="female" required> Kadın</label>
+                        <label><input id="gender-male" type="radio" name="gender" value="male"> Erkek</label>
+                        <label><input id="gender-other" type="radio" name="gender" value="other"> Belirtmek istemiyorum</label>
                     </div>
                 </div>
             </div>
@@ -174,7 +202,7 @@ $cities = $conn->query('SELECT DISTINCT city FROM clinic ORDER BY city ASC');
                 </div>
             </div>
             <div class="field time-field">
-                <label>Uygun saat</label>
+                <label for="appointment-time">Uygun saat</label>
                 <div id="appointment-time-grid" class="time-grid" aria-live="polite">
                     <div class="time-placeholder">Önce doktor ve tarih seçin.</div>
                 </div>
