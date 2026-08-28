@@ -31,9 +31,11 @@ if(isset($_POST['Submit'])){
             $q=$conn->prepare('INSERT INTO doctor (DID,Name,Gender,DOB,Experience,Specialization,Contact,Address,Username,Password,Region) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
             $q->bind_param('isssissssss',$did,$name,$gender,$dob,$experience,$specialization,$contact,$address,$username,$hash,$region);$q->execute();$q->close();
 
-            $q=$conn->prepare('INSERT INTO doctor_clinic (CID,DID) VALUES (?,?)');$q->bind_param('ii',$cid,$did);$q->execute();$q->close();
+            // Bu veritabanında doctor_clinic tablosu yoktur. Doktor-klinik ilişkisi
+            // doctor_availability tablosundaki CID + DID üzerinden tutulur.
             $q=$conn->prepare('INSERT INTO doctor_availability (CID,DID,Day,Starttime,Endtime) VALUES (?,?,?,?,?)');
-            foreach($validDays as $day){$q->bind_param('iisss',$cid,$did,$day,$start,$end);$q->execute();}$q->close();
+            foreach($validDays as $day){$q->bind_param('iisss',$cid,$did,$day,$start,$end);if(!$q->execute())throw new RuntimeException('availability');}
+            $q->close();
             $conn->commit();$message='Doktor başarıyla kaydedildi ve seçilen kliniğe çalışma programıyla atandı.';$messageType='success';
         }catch(Throwable $e){$conn->rollback();$message=$e->getMessage()==='exists'?'DID veya kullanıcı adı zaten mevcut.':($e->getMessage()==='clinic'?'Seçilen klinik belirtilen şehirde bulunamadı.':'Doktor kaydedilirken hata oluştu.');$messageType='error';}
     }
