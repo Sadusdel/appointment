@@ -4,7 +4,7 @@ require_once 'dbconfig.php';
 
 $message = '';
 
-if (isset($_POST['submit'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['uname'] ?? '');
     $password = (string)($_POST['pass'] ?? '');
 
@@ -19,19 +19,29 @@ if (isset($_POST['submit'])) {
         $stmt->close();
 
         $validPassword = false;
+        $legacyPassword = false;
         if ($row) {
             $storedPassword = (string)$row['password'];
             $validPassword = password_verify($password, $storedPassword);
             if (!$validPassword && hash_equals($storedPassword, $password)) {
                 $validPassword = true;
+                $legacyPassword = true;
             }
         }
 
         if ($row && $validPassword) {
+            if ($legacyPassword) {
+                $newHash = password_hash($password, PASSWORD_DEFAULT);
+                $updatePassword = $conn->prepare('UPDATE manager SET password = ? WHERE mid = ? LIMIT 1');
+                $updatePassword->bind_param('si', $newHash, $row['mid']);
+                $updatePassword->execute();
+                $updatePassword->close();
+            }
+
             session_regenerate_id(true);
             $_SESSION['username'] = $row['username'];
             $_SESSION['mgrname'] = $row['name'];
-            $_SESSION['mgrid'] = $row['mid'];
+            $_SESSION['mgrid'] = (int)$row['mid'];
             header('Location: mgrmenu.php');
             exit;
         }
@@ -57,15 +67,15 @@ if (isset($_POST['submit'])) {
 </div>
 <div class="sucontainer">
     <form action="mlogin.php" method="post">
-        <label><b>Username:</b></label><br>
-        <input type="text" placeholder="Enter Username" name="uname" autocomplete="username" required><br>
-        <label><b>Password:</b></label><br>
-        <input type="password" placeholder="Enter Password" name="pass" autocomplete="current-password" required><br><br>
+        <label for="manager-username"><b>Username:</b></label><br>
+        <input id="manager-username" type="text" placeholder="Enter Username" name="uname" autocomplete="username" required><br>
+        <label for="manager-password"><b>Password:</b></label><br>
+        <input id="manager-password" type="password" placeholder="Enter Password" name="pass" autocomplete="current-password" required><br><br>
         <?php if ($message !== ''): ?>
             <p role="alert"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></p>
         <?php endif; ?>
         <div class="container" style="background-color:grey">
-            <button type="submit" name="submit">Log In</button>
+            <button type="submit">Log In</button>
         </div>
     </form>
 </div>
